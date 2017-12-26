@@ -17,10 +17,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
-	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -33,8 +33,10 @@ var (
 	flag_test = flag.Bool("test", false, "print all available metrics to stdout")
 	flag_addr = flag.String("listen-address", ":9133", "The address to listen on for HTTP requests.")
 
-	flag_gateway_address = flag.String("gateway-address", "fritz.box", "The hostname or IP of the FRITZ!Box")
-	flag_gateway_port    = flag.Int("gateway-port", 49000, "The port of the FRITZ!Box UPnP service")
+	flag_gateway_address  = flag.String("gateway-address", "fritz.box", "The hostname or IP of the FRITZ!Box")
+	flag_gateway_port     = flag.Int("gateway-port", 49000, "The port of the FRITZ!Box UPnP service")
+	flag_gateway_username = flag.String("username", "", "The user for the FRITZ!Box UPnP service")
+	flag_gateway_password = flag.String("password", "", "The password for the FRITZ!Box UPnP service")
 )
 
 var (
@@ -165,11 +167,25 @@ var metrics = []*Metric{
 		),
 		MetricType: prometheus.GaugeValue,
 	},
+	{
+		Service: "urn:dslforum-org:service:WLANConfiguration:1",
+		Action:  "GetTotalAssociations",
+		Result:  "TotalAssociations",
+		Desc: prometheus.NewDesc(
+			"gateway_wlan_current_connections",
+			"current WLAN connections",
+			[]string{"gateway"},
+			nil,
+		),
+		MetricType: prometheus.GaugeValue,
+	},
 }
 
 type FritzboxCollector struct {
-	Gateway string
-	Port    uint16
+	Gateway  string
+	Port     uint16
+	Username string
+	Password string
 
 	sync.Mutex // protects Root
 	Root       *upnp.Root
@@ -178,7 +194,7 @@ type FritzboxCollector struct {
 // LoadServices tries to load the service information. Retries until success.
 func (fc *FritzboxCollector) LoadServices() {
 	for {
-		root, err := upnp.LoadServices(fc.Gateway, fc.Port)
+		root, err := upnp.LoadServices(fc.Gateway, fc.Port, fc.Username, fc.Password)
 		if err != nil {
 			fmt.Printf("cannot load services: %s\n", err)
 
@@ -280,13 +296,12 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func test() {
-	root, err := upnp.LoadServices(*flag_gateway_address, uint16(*flag_gateway_port))
+	root, err := upnp.LoadServices(*flag_gateway_address, uint16(*flag_gateway_port), *flag_gateway_username, *flag_gateway_password)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, s := range root.Services {
-		fmt.Printf("%s: %s\n", s.Device.FriendlyName, s.ServiceType)
 		for _, a := range s.Actions {
 			if !a.IsGetOnly() {
 				continue
@@ -294,7 +309,8 @@ func test() {
 
 			res, err := a.Call()
 			if err != nil {
-				panic(err)
+				fmt.Errorf("unexpected error", err)
+				continue
 			}
 
 			fmt.Printf("  %s\n", a.Name)
@@ -314,8 +330,10 @@ func main() {
 	}
 
 	collector := &FritzboxCollector{
-		Gateway: *flag_gateway_address,
-		Port:    uint16(*flag_gateway_port),
+		Gateway:  *flag_gateway_address,
+		Port:     uint16(*flag_gateway_port),
+		Username: *flag_gateway_username,
+		Password: *flag_gateway_password,
 	}
 
 	go collector.LoadServices()
