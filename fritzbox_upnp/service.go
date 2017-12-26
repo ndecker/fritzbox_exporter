@@ -40,6 +40,8 @@ var ErrInvalidSOAPResponse = errors.New("invalid SOAP response")
 // Root of the UPNP tree
 type Root struct {
 	BaseUrl  string
+	Username string
+	Password string
 	Device   Device `xml:"device"`
 	Services map[string]*Service // Map of all services indexed by .ServiceType
 }
@@ -200,10 +202,10 @@ func (d *Device) fillServices(r *Root) error {
 // Currently only actions without input arguments are supported.
 func (a *Action) Call() (Result, error) {
 	bodystr := fmt.Sprintf(`
-        <?xml version='1.0' encoding='utf-8'?> 
-        <s:Envelope s:encodingStyle='http://schemas.xmlsoap.org/soap/encoding/' xmlns:s='http://schemas.xmlsoap.org/soap/envelope/'> 
-            <s:Body> 
-                <u:%s xmlns:u='%s' /> 
+        <?xml version='1.0' encoding='utf-8'?>
+        <s:Envelope s:encodingStyle='http://schemas.xmlsoap.org/soap/encoding/' xmlns:s='http://schemas.xmlsoap.org/soap/envelope/'>
+            <s:Body>
+                <u:%s xmlns:u='%s' />
             </s:Body>
         </s:Envelope>
     `, a.Name, a.service.ServiceType)
@@ -220,6 +222,7 @@ func (a *Action) Call() (Result, error) {
 
 	req.Header["Content-Type"] = []string{text_xml}
 	req.Header["SoapAction"] = []string{action}
+	req.SetBasicAuth(a.service.Device.root.Username, a.service.Device.root.Password)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -299,9 +302,11 @@ func convertResult(val string, arg *Argument) (interface{}, error) {
 }
 
 // Load the services tree from an device.
-func LoadServices(device string, port uint16) (*Root, error) {
+func LoadServices(device string, port uint16, username string, password string) (*Root, error) {
 	var root = &Root{
 		BaseUrl: fmt.Sprintf("http://%s:%d", device, port),
+		Username: username,
+		Password: password,
 	}
 
 	err := root.load()

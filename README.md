@@ -29,6 +29,10 @@ Usage:
         	The address to listen on for HTTP requests. (default ":9133")
       -test
         	print all available metrics to stdout
+      -username
+            The username for requests to the FRITZ!Box UPnP service
+      -password
+            The password for requests to the FRITZ!Box UPnP service
 
 ## Exported metrics
 
