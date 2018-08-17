@@ -10,14 +10,12 @@ This exporter is known to work with the following models:
 
 | Model             | Firmware   |
 |-------------------|------------|
-| FRITZ!Box 4040    |            |
+| FRITZ!Box 4040    | 06.83      |
 | FRITZ!Box 6490    | 6.51       |
 | FRITZ!Box 7390    | 6.51       |
 | FRITZ!Box 7490    | 6.51, 7.29 |
 | FRITZ!Box 7560    | 6.92       |
 | FRITZ!Box 7362 SL | 7.12       |
-
-
 
 ## Building
 
