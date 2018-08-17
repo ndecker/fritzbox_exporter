@@ -8,12 +8,12 @@ to prometheus.
 
 This exporter is known to work with the following models:
 
-| Model | Firmware |
-|-------|---------|
-|FRITZ!Box 4040| |
-|FRITZ!Box 7390| 06.51|
-|FRITZ!Box 7490| 06.51|
-|FRITZ!Box 7560| 06.92|
+| Model          | Firmware |
+|----------------|----------|
+| FRITZ!Box 4040 | 06.83    |
+| FRITZ!Box 7390 | 06.51    |
+| FRITZ!Box 7490 | 06.51    |
+| FRITZ!Box 7560 | 06.92    |
 
 ## Building
 
