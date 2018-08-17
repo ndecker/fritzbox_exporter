@@ -15,6 +15,8 @@ This exporter is known to work with the following models:
 | FRITZ!Box 7490 | 06.51    |
 | FRITZ!Box 7560 | 06.92    |
 
+**FRITZ!OS 7 is not fully supported!**
+
 ## Building
 
     go get github.com/ndecker/fritzbox_exporter/
