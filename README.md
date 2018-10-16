@@ -6,8 +6,7 @@ This exporter exports some variables from an [AVM Fritzbox](https://avm.de/produ
 [![Docker Build Status](https://img.shields.io/docker/build/mxschmitt/fritzbox_exporter.svg)](https://store.docker.com/community/images/mxschmitt/fritzbox_exporter)
 [![GoDoc](https://godoc.org/github.com/mxschmitt/fritzbox_exporter/pkg/fritzboxmetrics?status.svg)](https://godoc.org/github.com/mxschmitt/fritzbox_exporter/pkg/fritzboxmetrics)
 
-<img src="./docs/fritzbox.svg" alt="FRITZ!Box" height="100px">
-<img src="./docs/prometheus.svg" alt="FRITZ!Box" height="100px">
+<img src="./docs/fritzbox.svg" alt="FRITZ!Box" height="100px"><img src="./docs/prometheus.svg" alt="FRITZ!Box" height="100px">
 
 ## Compatibility
 
