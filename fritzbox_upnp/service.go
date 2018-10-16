@@ -1,4 +1,4 @@
-// Query UPNP variables from Fritz!Box devices.
+// Query UPNP variables from FRITZ!Box devices.
 package fritzbox_upnp
 
 // Copyright 2016 Nils Decker

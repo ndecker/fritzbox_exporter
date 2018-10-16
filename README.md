@@ -1,10 +1,22 @@
-# Fritz!Box Upnp statistics exporter for prometheus
+# FRITZ!Box Upnp statistics exporter for prometheus
 
 This exporter exports some variables from an 
 [AVM Fritzbox](http://avm.de/produkte/fritzbox/)
 to prometheus.
 
-This exporter is tested with a Fritzbox 6490, 7490 and 7390 with software version 06.51 and 06.52.
+## Compatibility
+
+This exporter is known to work with the following models:
+
+| Model          | Firmware |
+|----------------|----------|
+| FRITZ!Box 4040 | 06.83    |
+| FRITZ!Box 7390 | 06.51    |
+| FRITZ!Box 7490 | 06.51    |
+| FRITZ!Box 6490 | 06.52    |
+| FRITZ!Box 7560 | 06.92    |
+
+**FRITZ!OS 7 is not fully supported!**
 
 ## Building
 
