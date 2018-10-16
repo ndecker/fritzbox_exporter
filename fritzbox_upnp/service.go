@@ -21,9 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
+
+	dac "github.com/123Haynes/go-http-digest-auth-client"
 )
 
 // curl http://fritz.box:49000/igddesc.xml
@@ -40,7 +43,9 @@ var ErrInvalidSOAPResponse = errors.New("invalid SOAP response")
 // Root of the UPNP tree
 type Root struct {
 	BaseUrl  string
-	Device   Device `xml:"device"`
+	Username string
+	Password string
+	Device   Device              `xml:"device"`
 	Services map[string]*Service // Map of all services indexed by .ServiceType
 }
 
@@ -75,7 +80,7 @@ type Service struct {
 	SCPDUrl     string `xml:"SCPDURL"`
 
 	Actions        map[string]*Action // All actions available on the service
-	StateVariables []*StateVariable // All state variables available on the service
+	StateVariables []*StateVariable   // All state variables available on the service
 }
 
 type scpdRoot struct {
@@ -87,8 +92,8 @@ type scpdRoot struct {
 type Action struct {
 	service *Service
 
-	Name        string      `xml:"name"`
-	Arguments   []*Argument `xml:"argumentList>argument"`
+	Name        string               `xml:"name"`
+	Arguments   []*Argument          `xml:"argumentList>argument"`
 	ArgumentMap map[string]*Argument // Map of arguments indexed by .Name
 }
 
@@ -101,6 +106,9 @@ func (a *Action) IsGetOnly() bool {
 		}
 	}
 	return len(a.Arguments) > 0
+
+	return false
+
 }
 
 // An Argument to an action
@@ -127,6 +135,26 @@ type Result map[string]interface{}
 func (r *Root) load() error {
 	igddesc, err := http.Get(
 		fmt.Sprintf("%s/igddesc.xml", r.BaseUrl),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	dec := xml.NewDecoder(igddesc.Body)
+
+	err = dec.Decode(r)
+	if err != nil {
+		return err
+	}
+
+	r.Services = make(map[string]*Service)
+	return r.Device.fillServices(r)
+}
+
+func (r *Root) loadTr64() error {
+	igddesc, err := http.Get(
+		fmt.Sprintf("%s/tr64desc.xml", r.BaseUrl),
 	)
 
 	if err != nil {
@@ -200,10 +228,10 @@ func (d *Device) fillServices(r *Root) error {
 // Currently only actions without input arguments are supported.
 func (a *Action) Call() (Result, error) {
 	bodystr := fmt.Sprintf(`
-        <?xml version='1.0' encoding='utf-8'?> 
-        <s:Envelope s:encodingStyle='http://schemas.xmlsoap.org/soap/encoding/' xmlns:s='http://schemas.xmlsoap.org/soap/envelope/'> 
-            <s:Body> 
-                <u:%s xmlns:u='%s' /> 
+        <?xml version='1.0' encoding='utf-8'?>
+        <s:Envelope s:encodingStyle='http://schemas.xmlsoap.org/soap/encoding/' xmlns:s='http://schemas.xmlsoap.org/soap/envelope/'>
+            <s:Body>
+                <u:%s xmlns:u='%s' />
             </s:Body>
         </s:Envelope>
     `, a.Name, a.service.ServiceType)
@@ -218,18 +246,19 @@ func (a *Action) Call() (Result, error) {
 
 	action := fmt.Sprintf("%s#%s", a.service.ServiceType, a.Name)
 
-	req.Header["Content-Type"] = []string{text_xml}
-	req.Header["SoapAction"] = []string{action}
+	req.Header.Set("Content-Type", text_xml)
+	req.Header.Set("SoapAction", action)
 
-	resp, err := http.DefaultClient.Do(req)
+	t := dac.NewTransport(a.service.Device.root.Username, a.service.Device.root.Password)
+
+	resp, err := t.RoundTrip(req)
 	if err != nil {
-		return nil, err
+		log.Fatalln(err)
 	}
 
 	data := new(bytes.Buffer)
 	data.ReadFrom(resp.Body)
 
-	// fmt.Printf(data.String())
 	return a.parseSoapResponse(data)
 
 }
@@ -299,14 +328,31 @@ func convertResult(val string, arg *Argument) (interface{}, error) {
 }
 
 // Load the services tree from an device.
-func LoadServices(device string, port uint16) (*Root, error) {
+func LoadServices(device string, port uint16, username string, password string) (*Root, error) {
 	var root = &Root{
-		BaseUrl: fmt.Sprintf("http://%s:%d", device, port),
+		BaseUrl:  fmt.Sprintf("http://%s:%d", device, port),
+		Username: username,
+		Password: password,
 	}
 
 	err := root.load()
 	if err != nil {
 		return nil, err
+	}
+
+	var rootTr64 = &Root{
+		BaseUrl:  fmt.Sprintf("http://%s:%d", device, port),
+		Username: username,
+		Password: password,
+	}
+
+	err = rootTr64.loadTr64()
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range rootTr64.Services {
+		root.Services[k] = v
 	}
 
 	return root, nil
