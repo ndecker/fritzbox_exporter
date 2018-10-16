@@ -309,7 +309,6 @@ func convertResult(val string, arg *Argument) (interface{}, error) {
 		return uint64(res), nil
 	default:
 		return nil, fmt.Errorf("unknown datatype: %s", arg.StateVariable.DataType)
-
 	}
 }
 
