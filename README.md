@@ -2,6 +2,9 @@
 
 This exporter exports some variables from an [AVM Fritzbox](https://avm.de/produkte/fritzbox/) to Prometheus.
 
+<img src="./docs/fritzbox.svg" alt="FRITZ!Box" height="100px">
+<img src="./docs/prometheus.svg" alt="FRITZ!Box" height="100px">
+
 ## Compatibility
 
 This exporter is known to work with the following models:
