@@ -1,12 +1,20 @@
-FROM golang:1.8-alpine
+FROM golang AS build-env
 
-ADD . $GOPATH/src/github.com/mxschmitt/fritzbox_exporter
+LABEL maintainer="Max Schmitt <max@schmitt.mx>"
+LABEL description="FRITZ!Box Prometheus exporter"
 
-RUN apk add --no-cache git
-RUN go get -v github.com/mxschmitt/fritzbox_exporter
+ADD . /go/src/github.com/mxschmitt/fritzbox_exporter
+
+RUN cd /go/src/github.com/mxschmitt/fritzbox_exporter/cmd/exporter && \
+    go get ./... && \
+    CGO_ENABLED=0 go build -o /exporter
+
+FROM alpine
+
+RUN apk add ca-certificates
+
+COPY --from=build-env /exporter /
 
 EXPOSE 9133
 
-ENTRYPOINT ["fritzbox_exporter"]
-CMD [""]
-
+ENTRYPOINT ["/exporter"]

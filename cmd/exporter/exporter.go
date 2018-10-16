@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	upnp "github.com/mxschmitt/fritzbox_exporter/pkg/fritzbox_metrics"
+	"github.com/mxschmitt/fritzbox_exporter/pkg/fritzboxmetrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -30,7 +30,7 @@ import (
 const serviceLoadRetryTime = 1 * time.Minute
 
 var (
-	collect_errors = prometheus.NewCounter(prometheus.CounterOpts{
+	collectErrors = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "fritzbox_exporter_collect_errors",
 		Help: "Number of collection errors.",
 	})
@@ -202,16 +202,16 @@ type FritzboxCollector struct {
 	Password string
 
 	sync.Mutex // protects Root
-	Root       *upnp.Root
+	Root       *fritzboxmetrics.Root
 }
 
 // LoadServices tries to load the service information. Retries until success.
 func (fc *FritzboxCollector) LoadServices() {
 	for {
-		root, err := upnp.LoadServices(fc.Gateway, fc.Port, fc.Username, fc.Password)
+		root, err := fritzboxmetrics.LoadServices(fc.Gateway, fc.Port, fc.Username, fc.Password)
 		if err != nil {
 			fmt.Printf("cannot load services: %v\n", err)
-
+			// Sleep so long how often the metrics should be fetched
 			time.Sleep(serviceLoadRetryTime)
 			continue
 		}
@@ -241,10 +241,9 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	var err error
 	var lastService string
 	var lastMethod string
-	var lastResult upnp.Result
+	var lastResult fritzboxmetrics.Result
 
 	for _, m := range metrics {
 		if m.Service != lastService || m.Action != lastMethod {
@@ -262,10 +261,11 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 				continue
 			}
 
+			var err error
 			lastResult, err = action.Call()
 			if err != nil {
-				fmt.Println(err)
-				collect_errors.Inc()
+				log.Printf("could not call action: %v", err)
+				collectErrors.Inc()
 				continue
 			}
 		}
@@ -273,7 +273,7 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 		val, ok := lastResult[m.Result]
 		if !ok {
 			fmt.Println("result not found", m.Result)
-			collect_errors.Inc()
+			collectErrors.Inc()
 			continue
 		}
 
@@ -295,9 +295,8 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		default:
 			fmt.Println("unknown", val)
-			collect_errors.Inc()
+			collectErrors.Inc()
 			continue
-
 		}
 
 		ch <- prometheus.MustNewConstMetric(
@@ -309,8 +308,8 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func test(settings *Settings) error {
-	root, err := upnp.LoadServices(settings.FritzBoxIP, uint16(settings.FritzBoxPort), settings.FritzBoxUserName, settings.FritzBoxIP)
+func printToStdout(settings *Settings) error {
+	root, err := fritzboxmetrics.LoadServices(settings.FritzBoxIP, uint16(settings.FritzBoxPort), settings.FritzBoxUserName, settings.FritzBoxIP)
 	if err != nil {
 		return errors.Wrap(err, "could not load UPnP service")
 	}
@@ -337,7 +336,7 @@ func test(settings *Settings) error {
 }
 
 type Settings struct {
-	Dummy            bool
+	Stdout           bool
 	ListenAddr       string
 	FritzBoxIP       string
 	FritzBoxPort     int
@@ -347,7 +346,7 @@ type Settings struct {
 
 func main() {
 	settings := &Settings{}
-	flag.BoolVar(&settings.Dummy, "dump", false, "print all available metrics to stdout")
+	flag.BoolVar(&settings.Stdout, "stdout", false, "print all available metrics to stdout")
 	flag.StringVar(&settings.ListenAddr, "listen-address", ":9133", "The address to listen on for HTTP requests.")
 
 	flag.StringVar(&settings.FritzBoxIP, "gateway-address", "fritz.box", "The hostname or IP of the FRITZ!Box")
@@ -357,8 +356,8 @@ func main() {
 
 	flag.Parse()
 
-	if settings.Dummy {
-		if err := test(settings); err != nil {
+	if settings.Stdout {
+		if err := printToStdout(settings); err != nil {
 			log.Printf("could not print metrics to stdout: %v", err)
 		}
 		return
@@ -374,7 +373,7 @@ func main() {
 	go collector.LoadServices()
 
 	prometheus.MustRegister(collector)
-	prometheus.MustRegister(collect_errors)
+	prometheus.MustRegister(collectErrors)
 
 	http.Handle("/metrics", prometheus.Handler())
 	log.Fatal(http.ListenAndServe(settings.ListenAddr, nil))

@@ -1,5 +1,5 @@
-// Query UPNP variables from FRITZ!Box devices.
-package fritzbox_metrics
+// Package fritzboxmetrics provides metrics fro the UPnP and Tr64 interface
+package fritzboxmetrics
 
 // Copyright 2016 Nils Decker
 //
@@ -18,15 +18,14 @@ package fritzbox_metrics
 import (
 	"bytes"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	dac "github.com/123Haynes/go-http-digest-auth-client"
+	"github.com/pkg/errors"
 )
 
 // curl http://fritz.box:49000/igddesc.xml
@@ -36,48 +35,49 @@ import (
 // curl http://fritz.box:49000/igddslSCPD.xml
 // curl http://fritz.box:49000/igd2ipv6fwcSCPD.xml
 
-const text_xml = `text/xml; charset="utf-8"`
+const textXML = `text/xml; charset="utf-8"`
 
+// ErrInvalidSOAPResponse will be thrown if we've got an invalid SOAP response
 var ErrInvalidSOAPResponse = errors.New("invalid SOAP response")
 
 // Root of the UPNP tree
 type Root struct {
-	BaseUrl  string
+	BaseURL  string
 	Username string
 	Password string
 	Device   Device              `xml:"device"`
 	Services map[string]*Service // Map of all services indexed by .ServiceType
 }
 
-// An UPNP Device
+// Device represents an UPNP device
 type Device struct {
 	root *Root
 
 	DeviceType       string `xml:"deviceType"`
 	FriendlyName     string `xml:"friendlyName"`
 	Manufacturer     string `xml:"manufacturer"`
-	ManufacturerUrl  string `xml:"manufacturerURL"`
+	ManufacturerURL  string `xml:"ManufacturerURL"`
 	ModelDescription string `xml:"modelDescription"`
 	ModelName        string `xml:"modelName"`
 	ModelNumber      string `xml:"modelNumber"`
-	ModelUrl         string `xml:"modelURL"`
+	ModelURL         string `xml:"ModelURL"`
 	UDN              string `xml:"UDN"`
 
 	Services []*Service `xml:"serviceList>service"` // Service of the device
 	Devices  []*Device  `xml:"deviceList>device"`   // Sub-Devices of the device
 
-	PresentationUrl string `xml:"presentationURL"`
+	PresentationURL string `xml:"PresentationURL"`
 }
 
-// An UPNP Service
+// Service represents an UPnP Service
 type Service struct {
 	Device *Device
 
 	ServiceType string `xml:"serviceType"`
-	ServiceId   string `xml:"serviceId"`
-	ControlUrl  string `xml:"controlURL"`
-	EventSubUrl string `xml:"eventSubURL"`
-	SCPDUrl     string `xml:"SCPDURL"`
+	ServiceID   string `xml:"serviceId"`
+	ControlURL  string `xml:"controlURL"`
+	EventSubURL string `xml:"eventSubURL"`
+	SCPDURL     string `xml:"SCPDURL"`
 
 	Actions        map[string]*Action // All actions available on the service
 	StateVariables []*StateVariable   // All state variables available on the service
@@ -88,7 +88,7 @@ type scpdRoot struct {
 	StateVariables []*StateVariable `xml:"serviceStateTable>stateVariable"`
 }
 
-// An UPNP Acton on a service
+// Action represents an UPnP Action on a Service
 type Action struct {
 	service *Service
 
@@ -97,7 +97,7 @@ type Action struct {
 	ArgumentMap map[string]*Argument // Map of arguments indexed by .Name
 }
 
-// Returns if the action seems to be a query for information.
+// IsGetOnly returns if the action seems to be a query for information.
 // This is determined by checking if the action has no input arguments and at least one output argument.
 func (a *Action) IsGetOnly() bool {
 	for _, a := range a.Arguments {
@@ -106,9 +106,6 @@ func (a *Action) IsGetOnly() bool {
 		}
 	}
 	return len(a.Arguments) > 0
-
-	return false
-
 }
 
 // An Argument to an action
@@ -119,33 +116,29 @@ type Argument struct {
 	StateVariable        *StateVariable
 }
 
-// A state variable that can be manipulated through actions
+// StateVariable is a variable that can be manipulated through actions
 type StateVariable struct {
 	Name         string `xml:"name"`
 	DataType     string `xml:"dataType"`
 	DefaultValue string `xml:"defaultValue"`
 }
 
-// The result of a Call() contains all output arguments of the call.
+// Result are all output argements of the Call():
 // The map is indexed by the name of the state variable.
 // The type of the value is string, uint64 or bool depending of the DataType of the variable.
 type Result map[string]interface{}
 
 // load the whole tree
 func (r *Root) load() error {
-	igddesc, err := http.Get(
-		fmt.Sprintf("%s/igddesc.xml", r.BaseUrl),
-	)
-
+	response, err := http.Get(fmt.Sprintf("%s/igddesc.xml", r.BaseURL))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "could not get igddesc.xml")
 	}
 
-	dec := xml.NewDecoder(igddesc.Body)
+	dec := xml.NewDecoder(response.Body)
 
-	err = dec.Decode(r)
-	if err != nil {
-		return err
+	if err = dec.Decode(r); err != nil {
+		return errors.Wrap(err, "could not decode XML")
 	}
 
 	r.Services = make(map[string]*Service)
@@ -153,19 +146,14 @@ func (r *Root) load() error {
 }
 
 func (r *Root) loadTr64() error {
-	igddesc, err := http.Get(
-		fmt.Sprintf("%s/tr64desc.xml", r.BaseUrl),
-	)
-
+	igddesc, err := http.Get(fmt.Sprintf("%s/tr64desc.xml", r.BaseURL))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "could not fetch tr64desc.xml")
 	}
 
 	dec := xml.NewDecoder(igddesc.Body)
-
-	err = dec.Decode(r)
-	if err != nil {
-		return err
+	if err = dec.Decode(r); err != nil {
+		return errors.Wrap(err, "could not decode XML")
 	}
 
 	r.Services = make(map[string]*Service)
@@ -179,17 +167,16 @@ func (d *Device) fillServices(r *Root) error {
 	for _, s := range d.Services {
 		s.Device = d
 
-		response, err := http.Get(r.BaseUrl + s.SCPDUrl)
+		response, err := http.Get(r.BaseURL + s.SCPDURL)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "could not get service descriptions")
 		}
 
 		var scpd scpdRoot
 
 		dec := xml.NewDecoder(response.Body)
-		err = dec.Decode(&scpd)
-		if err != nil {
-			return err
+		if err = dec.Decode(&scpd); err != nil {
+			return errors.Wrap(err, "could not decode xml")
 		}
 
 		s.Actions = make(map[string]*Action)
@@ -216,9 +203,8 @@ func (d *Device) fillServices(r *Root) error {
 		r.Services[s.ServiceType] = s
 	}
 	for _, d2 := range d.Devices {
-		err := d2.fillServices(r)
-		if err != nil {
-			return err
+		if err := d2.fillServices(r); err != nil {
+			return errors.Wrap(err, "could not fill services")
 		}
 	}
 	return nil
@@ -236,24 +222,24 @@ func (a *Action) Call() (Result, error) {
         </s:Envelope>
     `, a.Name, a.service.ServiceType)
 
-	url := a.service.Device.root.BaseUrl + a.service.ControlUrl
+	url := a.service.Device.root.BaseURL + a.service.ControlURL
 	body := strings.NewReader(bodystr)
 
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not create new request")
 	}
 
 	action := fmt.Sprintf("%s#%s", a.service.ServiceType, a.Name)
 
-	req.Header.Set("Content-Type", text_xml)
+	req.Header.Set("Content-Type", textXML)
 	req.Header.Set("SoapAction", action)
 
+	// Add digest authentification
 	t := dac.NewTransport(a.service.Device.root.Username, a.service.Device.root.Password)
-
 	resp, err := t.RoundTrip(req)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, errors.Wrap(err, "could not roundtrip digest authentification")
 	}
 
 	data := new(bytes.Buffer)
@@ -318,7 +304,7 @@ func convertResult(val string, arg *Argument) (interface{}, error) {
 		// type ui4 can contain values greater than 2^32!
 		res, err := strconv.ParseUint(val, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "could nto parse uint")
 		}
 		return uint64(res), nil
 	default:
@@ -327,28 +313,26 @@ func convertResult(val string, arg *Argument) (interface{}, error) {
 	}
 }
 
-// Load the services tree from an device.
+// LoadServices loads the services tree from a device.
 func LoadServices(device string, port uint16, username string, password string) (*Root, error) {
-	var root = &Root{
-		BaseUrl:  fmt.Sprintf("http://%s:%d", device, port),
+	root := &Root{
+		BaseURL:  fmt.Sprintf("http://%s:%d", device, port),
 		Username: username,
 		Password: password,
 	}
 
-	err := root.load()
-	if err != nil {
-		return nil, err
+	if err := root.load(); err != nil {
+		return nil, errors.Wrap(err, "could not load root element")
 	}
 
-	var rootTr64 = &Root{
-		BaseUrl:  fmt.Sprintf("http://%s:%d", device, port),
+	rootTr64 := &Root{
+		BaseURL:  fmt.Sprintf("http://%s:%d", device, port),
 		Username: username,
 		Password: password,
 	}
 
-	err = rootTr64.loadTr64()
-	if err != nil {
-		return nil, err
+	if err := rootTr64.loadTr64(); err != nil {
+		return nil, errors.Wrap(err, "could not load Tr64")
 	}
 
 	for k, v := range rootTr64.Services {
