@@ -1,8 +1,6 @@
-# FRITZ!Box Upnp statistics exporter for prometheus
+# FRITZ!Box Upnp statistics exporter for Prmoetheus
 
-This exporter exports some variables from an 
-[AVM Fritzbox](http://avm.de/produkte/fritzbox/)
-to prometheus.
+This exporter exports some variables from an [AVM Fritzbox](https://avm.de/produkte/fritzbox/) to Prometheus.
 
 ## Compatibility
 
@@ -20,16 +18,26 @@ This exporter is known to work with the following models:
 
 ## Building
 
-    go get github.com/ndecker/fritzbox_exporter/
-    cd $GOPATH/src/github.com/ndecker/fritzbox_exporter
-    go install
+```bash
+go get github.com/mxschmitt/fritzbox_exporter
+cd $GOPATH/src/github.com/mxschmitt/cmd/exporter
+go get ./...
+go build
+```
 
-## Running
+## Prerequisites
 
-In the configuration of the Fritzbox the option "Statusinformationen über UPnP übertragen" in the dialog "Heimnetz >
-Heimnetzübersicht > Netzwerkeinstellungen" has to be enabled.
+There has to be UPnP enabled.
 
-Usage:
+## FRITZ!OS 7.00+
+
+`Heimnetz` > `Netzwerk` > `Netwerkeinstellungen` > `Statusinformationen über UPnP übertragen`
+
+## FRITZ!OS 6
+
+`Heimnetz` > `Heimnetzübersicht` > `Netzwerkeinstellungen` > `Statusinformationen über UPnP übertragen`
+
+# Usage
 
     $GOPATH/bin/fritzbox_exporter -h
     Usage of ./fritzbox_exporter:

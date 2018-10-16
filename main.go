@@ -24,7 +24,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	upnp "github.com/ndecker/fritzbox_exporter/fritzbox_upnp"
+	upnp "github.com/mxschmitt/fritzbox_exporter/fritzbox_upnp"
 )
 
 const serviceLoadRetryTime = 1 * time.Minute
