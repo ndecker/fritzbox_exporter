@@ -26,7 +26,7 @@ This exporter is known to work with the following models:
 
 ```bash
 go get github.com/mxschmitt/fritzbox_exporter
-cd $GOPATH/src/github.com/mxschmitt/cmd/exporter
+cd $GOPATH/src/github.com/mxschmitt/fritzbox_exporter/cmd/exporter
 go get ./...
 go build
 ```
@@ -45,8 +45,8 @@ There has to be UPnP enabled.
 
 # Usage
 
-    $GOPATH/bin/fritzbox_exporter -h
-    Usage of ./fritzbox_exporter:
+    $GOPATH/src/github.com/mxschmitt/fritzbox_exporter/cmd/exporter/exporter -h
+    Usage $GOPATH/src/github.com/mxschmitt/fritzbox_exporter/cmd/exporter/exporter:
       -gateway-address string
         	The hostname or IP of the FRITZ!Box (default "fritz.box")
       -gateway-port int
