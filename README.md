@@ -1,26 +1,52 @@
-# Fritz!Box Upnp statistics exporter for prometheus
+# FRITZ!Box Upnp statistics exporter for Prometheus
 
-This exporter exports some variables from an 
-[AVM Fritzbox](http://avm.de/produkte/fritzbox/)
-to prometheus.
+This exporter exports some variables from an [AVM Fritzbox](https://avm.de/produkte/fritzbox/) to Prometheus.
 
-This exporter is tested with a Fritzbox 7490 and 7390 with software version 06.51.
+
+[![Docker Build Status](https://img.shields.io/docker/build/mxschmitt/fritzbox_exporter.svg)](https://store.docker.com/community/images/mxschmitt/fritzbox_exporter)
+[![GoDoc](https://godoc.org/github.com/mxschmitt/fritzbox_exporter/pkg/fritzboxmetrics?status.svg)](https://godoc.org/github.com/mxschmitt/fritzbox_exporter/pkg/fritzboxmetrics)
+
+<img src="./docs/fritzbox.svg" alt="FRITZ!Box" height="100px"><img src="./docs/prometheus.svg" alt="FRITZ!Box" height="100px">
+
+## Compatibility
+
+This exporter is known to work with the following models:
+
+| Model          | Firmware |
+|----------------|----------|
+| FRITZ!Box 4040 | 06.83    |
+| FRITZ!Box 7390 | 06.51    |
+| FRITZ!Box 7490 | 06.51    |
+| FRITZ!Box 6490 | 06.52    |
+| FRITZ!Box 7560 | 06.92    |
+
+**FRITZ!OS 7 is not fully supported!**
 
 ## Building
 
-    go get github.com/ndecker/fritzbox_exporter/
-    cd $GOPATH/src/github.com/ndecker/fritzbox_exporter
-    go install
+```bash
+go get github.com/mxschmitt/fritzbox_exporter
+cd $GOPATH/src/github.com/mxschmitt/fritzbox_exporter/cmd/exporter
+go get ./...
+go build
+```
 
-## Running
+## Prerequisites
 
-In the configuration of the Fritzbox the option "Statusinformationen über UPnP übertragen" in the dialog "Heimnetz >
-Heimnetzübersicht > Netzwerkeinstellungen" has to be enabled.
+There has to be UPnP enabled.
 
-Usage:
+## FRITZ!OS 7.00+
 
-    $GOPATH/bin/fritzbox_exporter -h
-    Usage of ./fritzbox_exporter:
+`Heimnetz` > `Netzwerk` > `Netwerkeinstellungen` > `Statusinformationen über UPnP übertragen`
+
+## FRITZ!OS 6
+
+`Heimnetz` > `Heimnetzübersicht` > `Netzwerkeinstellungen` > `Statusinformationen über UPnP übertragen`
+
+# Usage
+
+    $GOPATH/src/github.com/mxschmitt/fritzbox_exporter/cmd/exporter/exporter -h
+    Usage $GOPATH/src/github.com/mxschmitt/fritzbox_exporter/cmd/exporter/exporter:
       -gateway-address string
         	The hostname or IP of the FRITZ!Box (default "fritz.box")
       -gateway-port int
