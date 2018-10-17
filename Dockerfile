@@ -11,7 +11,7 @@ RUN cd /go/src/github.com/mxschmitt/fritzbox_exporter/cmd/exporter && \
 
 FROM alpine
 
-RUN apk add ca-certificates
+RUN apk update && apk add ca-certificates
 
 COPY --from=build-env /exporter /
 
