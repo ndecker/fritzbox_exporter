@@ -1,4 +1,4 @@
-FROM golang:1.8-alpine
+FROM golang:1.15-alpine
 
 ADD . $GOPATH/src/github.com/ndecker/fritzbox_exporter
 
