@@ -1,0 +1,23 @@
+# github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a
+## explicit
+github.com/beorn7/perks/quantile
+# github.com/golang/protobuf v0.0.0-20160817174113-f592bd283e9e
+## explicit
+github.com/golang/protobuf/proto
+# github.com/matttproud/golang_protobuf_extensions v1.0.1
+## explicit
+github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/prometheus/client_golang v0.8.1-0.20161017123536-334af0119a8f
+## explicit
+github.com/prometheus/client_golang/prometheus
+# github.com/prometheus/client_model v0.0.0-20150212101744-fa8ad6fec335
+## explicit
+github.com/prometheus/client_model/go
+# github.com/prometheus/common v0.0.0-20160801171955-ebdfc6da4652
+## explicit
+github.com/prometheus/common/expfmt
+github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
+github.com/prometheus/common/model
+# github.com/prometheus/procfs v0.0.0-20160411190841-abf152e5f3e9
+## explicit
+github.com/prometheus/procfs
