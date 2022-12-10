@@ -1,12 +1,15 @@
-FROM golang:1.8-alpine
+FROM golang:1.17-alpine AS builder
 
-ADD . $GOPATH/src/github.com/ndecker/fritzbox_exporter
+WORKDIR /build
+COPY . /build/
 
-RUN apk add --no-cache git
-RUN go get -v github.com/ndecker/fritzbox_exporter
+ENV CGO_ENABLED=0
+
+RUN go build -v .
+
+FROM busybox
+
+COPY --from=builder /build/fritzbox_exporter /usr/local/bin/fritzbox_exporter
 
 EXPOSE 9133
-
-ENTRYPOINT ["fritzbox_exporter"]
-CMD [""]
-
+ENTRYPOINT /usr/local/bin/fritzbox_exporter
