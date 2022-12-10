@@ -19,9 +19,20 @@ This exporter is known to work with the following models:
 
 ## Building
 
-    go get github.com/ndecker/fritzbox_exporter/
-    cd $GOPATH/src/github.com/ndecker/fritzbox_exporter
+### Go install
+
+    go install github.com/ndecker/fritzbox_exporter@latest
+
+### Go build
+
+    git clone https://github.com/ndecker/fritzbox_exporter/
+    cd fritzbox_exporter
+    go build
     go install
+
+### Docker
+    git clone https://github.com/ndecker/fritzbox_exporter/
+    docker build -t fritzbox_exporter fritzbox_exporter
 
 ## Running
 
@@ -30,16 +41,20 @@ Heimnetzübersicht > Netzwerkeinstellungen" has to be enabled.
 
 Usage:
 
-    $GOPATH/bin/fritzbox_exporter -h
-    Usage of ./fritzbox_exporter:
-      -gateway-address string
-        	The hostname or IP of the FRITZ!Box (default "fritz.box")
-      -gateway-port int
-        	The port of the FRITZ!Box UPnP service (default 49000)
-      -listen-address string
-        	The address to listen on for HTTP requests. (default ":9133")
-      -test
-        	print all available metrics to stdout
+    ./fritzbox_exporter -h
+    -gateway-address string
+       	The hostname or IP of the FRITZ!Box (default "fritz.box")
+    -gateway-port int
+    	The port of the FRITZ!Box UPnP service (default 49000)
+    -listen-address string
+    	The address to listen on for HTTP requests. (default ":9133")
+    -password string
+    	The password for the FRITZ!Box UPnP service
+    -test
+    	print all available metrics to stdout
+    -username string
+    	The user for the FRITZ!Box UPnP service
+
 
 ##  Prerequisites
 ### FRITZ!OS 7.00+
@@ -91,87 +106,149 @@ These metrics are exported:
 The exporter prints all available Variables to stdout when called with the -test option.
 These values are determined by parsing all services from http://fritz.box:49000/igddesc.xml 
 
-    Name: urn:schemas-any-com:service:Any:1
-    WANDevice - FRITZ!Box 7490: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
-      GetCommonLinkProperties
-        WANAccessType: DSL
-        Layer1UpstreamMaxBitRate: 1148000
-        Layer1DownstreamMaxBitRate: 12860000
-        PhysicalLinkStatus: Up
-      GetTotalBytesSent
-        TotalBytesSent: 255710914
-      GetTotalBytesReceived
-        TotalBytesReceived: 5037753042
-      GetTotalPacketsSent
-        TotalPacketsSent: 3050536
-      GetTotalPacketsReceived
-        TotalPacketsReceived: 1346651
+      GetFirewallStatus
+        FirewallEnabled: true
+        InboundPinholeAllowed: false
+      GetInfo
+        MaxCharsPassword: 32
+        MinCharsPassword: 0
+        AllowedCharsPassword: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+      X_AVM-DE_GetAnonymousLogin
+        X_AVM-DE_AnonymousLoginEnabled: false
+        X_AVM-DE_ButtonLoginEnabled: false
+      X_AVM-DE_GetUserList
+        X_AVM-DE_UserList: <List><Username last_user="1">xxx</Username>
+      X_AVM-DE_GetWLANConnectionInfo
+        AssociatedDeviceMACAddress: <nil>
+        SSID: <nil>
+        BSSID: <nil>
+        BeaconType: <nil>
+        Channel: <nil>
+        Standard: <nil>
+        X_AVM-DE_SignalStrength: <nil>
+        X_AVM-DE_Speed: <nil>
+        X_AVM-DE_SpeedRX: <nil>
+        X_AVM-DE_SpeedMax: <nil>
+        X_AVM-DE_SpeedRXMax: <nil>
+      GetHostNumberOfEntries
+        HostNumberOfEntries: 5
+      X_AVM-DE_GetChangeCounter
+        X_AVM-DE_ChangeCounter: 0
+      X_AVM-DE_DoUpdate
+        UpgradeAvailable: false
+        X_AVM-DE_UpdateState: NoUpdate
+      GetSecurityPort
+        SecurityPort: 49443
       GetAddonInfos
-        ByteSendRate: 0
-        ByteReceiveRate: 0
+        ByteSendRate: 35
+        ByteReceiveRate: 26
         PacketSendRate: 0
         PacketReceiveRate: 0
-        TotalBytesSent: 255710914
-        TotalBytesReceived: 5037753042
+        TotalBytesSent: 354858561
+        TotalBytesReceived: 626712195
         AutoDisconnectTime: 0
-        IdleDisconnectTime: 10
-        DNSServer1: 1.1.1.1
-        DNSServer2: 2.2.2.2
-        VoipDNSServer1: 1.1.1.1
-        VoipDNSServer2: 2.2.2.2
+        IdleDisconnectTime: 1
+        DNSServer1: xxx.xxx.xxx.xxx
+        DNSServer2: xxx.xxx.xxx.xxx
+        VoipDNSServer1: xxx.xxx.xxx.xxx
+        VoipDNSServer2: xxx.xxx.xxx.xxx
         UpnpControlEnabled: false
         RoutedBridgedModeBoth: 1
-    WANConnectionDevice - FRITZ!Box 7490: urn:schemas-upnp-org:service:WANDSLLinkConfig:1
-      GetDSLLinkInfo
-        LinkType: PPPoE
-        LinkStatus: Up
-      GetModulationType
-        ModulationType: ADSL G.lite
-      GetDestinationAddress
-        DestinationAddress: NONE
-      GetATMEncapsulation
-        ATMEncapsulation: LLC
-      GetFCSPreserved
-        FCSPreserved: true
-      GetAutoConfig
-        AutoConfig: true
-    WANConnectionDevice - FRITZ!Box 7490: urn:schemas-upnp-org:service:WANIPConnection:1
+        X_AVM_DE_TotalBytesSent64: 354858561
+        X_AVM_DE_TotalBytesReceived64: 4921679491
+        X_AVM_DE_WANAccessType: DSL
+      X_AVM_DE_GetDsliteStatus
+        X_AVM_DE_DsliteStatus: false
+      X_AVM_DE_GetIPTVInfos
+        X_AVM_DE_IPTV_Enabled: false
+        X_AVM_DE_IPTV_Provider: 
+        X_AVM_DE_IPTV_URL: 
+      GetCommonLinkProperties
+        WANAccessType: DSL
+        Layer1UpstreamMaxBitRate: 33251000
+        Layer1DownstreamMaxBitRate: 114110000
+        PhysicalLinkStatus: Up
+      GetTotalBytesSent
+        TotalBytesSent: 354858561
+      GetTotalBytesReceived
+        TotalBytesReceived: 626712195
+      GetTotalPacketsSent
+        TotalPacketsSent: 245896
+      GetTotalPacketsReceived
+        TotalPacketsReceived: 69248
       X_AVM_DE_GetDNSServer
-        IPv4DNSServer1: 1.1.1.1
-        IPv4DNSServer2: 2.2.2.2
-      GetAutoDisconnectTime
-        AutoDisconnectTime: 0
+        IPv4DNSServer1: xxx.xxx.xxx.xxx
+        IPv4DNSServer2: xxx.xxx.xxx.xxx
       GetIdleDisconnectTime
         IdleDisconnectTime: 0
-      X_AVM_DE_GetExternalIPv6Address
-        ExternalIPv6Address: 
-        PrefixLength: 0
-        ValidLifetime: 0
-        PreferedLifetime: 0
+      GetStatusInfo
+        ConnectionStatus: Connected
+        LastConnectionError: ERROR_NONE
+        Uptime: 70993
       GetNATRSIPStatus
         RSIPAvailable: false
         NATEnabled: true
-      GetExternalIPAddress
-        ExternalIPAddress: 1.1.1.1
+      GetAutoDisconnectTime
+        AutoDisconnectTime: 0
       X_AVM_DE_GetIPv6Prefix
         IPv6Prefix: 
         PrefixLength: 0
         ValidLifetime: 0
         PreferedLifetime: 0
-      X_AVM_DE_GetIPv6DNSServer
-        IPv6DNSServer1: 
-        ValidLifetime1: 2002000000
-        IPv6DNSServer2: 
-        ValidLifetime2: 199800000
       GetConnectionTypeInfo
         ConnectionType: IP_Routed
         PossibleConnectionTypes: IP_Routed
-      GetStatusInfo
-        ConnectionStatus: Connected
-        LastConnectionError: ERROR_NONE
-        Uptime: 65386
-    WANConnectionDevice - FRITZ!Box 7490: urn:schemas-upnp-org:service:WANIPv6FirewallControl:1
-      GetFirewallStatus
-        FirewallEnabled: true
-        InboundPinholeAllowed: false
+      X_AVM_DE_GetExternalIPv6Address
+        ExternalIPv6Address: 
+        PrefixLength: 0
+        ValidLifetime: 0
+        PreferedLifetime: 0
+      X_AVM_DE_GetIPv6DNSServer
+        IPv6DNSServer1: 
+        ValidLifetime1: 0
+        IPv6DNSServer2: 
+        ValidLifetime2: 2003335812
+      GetExternalIPAddress
+        ExternalIPAddress: xxx.xxx.xxx.xxx
+      X_AVM-DE_GetNightControl
+        NightControl: <rule id="0" enabled="0"><item day="127" time="2100" action="0" /><item
+    day="127" time="2300" action="1" /></rule>
 
+        NightTimeControlNoForcedOff: false
+      X_AVM-DE_GetWLANConnectionInfo
+        AssociatedDeviceMACAddress: <nil>
+        SSID: <nil>
+        BSSID: <nil>
+        BeaconType: <nil>
+        Channel: <nil>
+        Standard: <nil>
+        X_AVM-DE_SignalStrength: <nil>
+        X_AVM-DE_Speed: <nil>
+        X_AVM-DE_SpeedRX: <nil>
+        X_AVM-DE_SpeedMax: <nil>
+        X_AVM-DE_SpeedRXMax: <nil>
+      X_AVM-DE_GetWLANConnectionInfo
+        AssociatedDeviceMACAddress: <nil>
+        SSID: <nil>
+        BSSID: <nil>
+        BeaconType: <nil>
+        Channel: <nil>
+        Standard: <nil>
+        X_AVM-DE_SignalStrength: <nil>
+        X_AVM-DE_Speed: <nil>
+        X_AVM-DE_SpeedRX: <nil>
+        X_AVM-DE_SpeedMax: <nil>
+        X_AVM-DE_SpeedRXMax: <nil>
+      GetAutoConfig
+        AutoConfig: false
+      GetModulationType
+        ModulationType: 
+      GetDSLLinkInfo
+        LinkType: PPPoE
+        LinkStatus: Up
+      GetATMEncapsulation
+        ATMEncapsulation: 
+      GetFCSPreserved
+        FCSPreserved: false
+      GetDestinationAddress
+        DestinationAddress: 
