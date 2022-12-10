@@ -36,6 +36,8 @@ import (
 // curl http://fritz.box:49000/igddslSCPD.xml
 // curl http://fritz.box:49000/igd2ipv6fwcSCPD.xml
 
+// For TR64: curl http://fritz.box:49000/tr64desc.xmll
+
 const text_xml = `text/xml; charset="utf-8"`
 
 var ErrInvalidSOAPResponse = errors.New("invalid SOAP response")
@@ -145,7 +147,7 @@ func (r *Root) load() error {
 
 	err = dec.Decode(r)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode igdesc.xml: %w", err)
 	}
 
 	r.Services = make(map[string]*Service)
@@ -158,7 +160,7 @@ func (r *Root) loadTr64() error {
 	)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode tr64desc.xml: %w", err)
 	}
 
 	dec := xml.NewDecoder(igddesc.Body)
@@ -255,17 +257,24 @@ func (a *Action) Call() (Result, error) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer resp.Body.Close()
 
-	data := new(bytes.Buffer)
-	data.ReadFrom(resp.Body)
+	if resp.StatusCode == 401 {
+		return nil, fmt.Errorf("cannot read service %s: status 401 unauthorized", a.Name)
+	}
+
+	data,err  := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read request body: %w", err)
+	}
 
 	return a.parseSoapResponse(data)
 
 }
 
-func (a *Action) parseSoapResponse(r io.Reader) (Result, error) {
+func (a *Action) parseSoapResponse(data []byte) (Result, error) {
 	res := make(Result)
-	dec := xml.NewDecoder(r)
+	dec := xml.NewDecoder(bytes.NewReader(data))
 
 	for {
 		t, err := dec.Token()
@@ -274,7 +283,7 @@ func (a *Action) parseSoapResponse(r io.Reader) (Result, error) {
 		}
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot parse soap response: %w; body: %s", err, data)
 		}
 
 		if se, ok := t.(xml.StartElement); ok {
