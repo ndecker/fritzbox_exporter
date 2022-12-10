@@ -31,17 +31,17 @@ import (
 const serviceLoadRetryTime = 1 * time.Minute
 
 var (
-	flag_test = flag.Bool("test", false, "print all available metrics to stdout")
-	flag_addr = flag.String("listen-address", ":9133", "The address to listen on for HTTP requests.")
+	flagTest = flag.Bool("test", false, "print all available metrics to stdout")
+	flagAddr = flag.String("listen-address", ":9133", "The address to listen on for HTTP requests.")
 
-	flag_gateway_address  = flag.String("gateway-address", "fritz.box", "The hostname or IP of the FRITZ!Box")
-	flag_gateway_port     = flag.Int("gateway-port", 49000, "The port of the FRITZ!Box UPnP service")
-	flag_gateway_username = flag.String("username", "", "The user for the FRITZ!Box UPnP service")
-	flag_gateway_password = flag.String("password", "", "The password for the FRITZ!Box UPnP service")
+	flagGatewayAddress  = flag.String("gateway-address", "fritz.box", "The hostname or IP of the FRITZ!Box")
+	flagGatewayPort     = flag.Int("gateway-port", 49000, "The port of the FRITZ!Box UPnP service")
+	flagGatewayUsername = flag.String("username", "", "The user for the FRITZ!Box UPnP service")
+	flagGatewayPassword = flag.String("password", "", "The password for the FRITZ!Box UPnP service")
 )
 
 var (
-	collect_errors = prometheus.NewCounter(prometheus.CounterOpts{
+	collectErrors = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "fritzbox_exporter_collect_errors",
 		Help: "Number of collection errors.",
 	})
@@ -253,12 +253,12 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	var err error
-	var last_service string
-	var last_method string
-	var last_result upnp.Result
+	var lastService string
+	var lastMethod string
+	var lastResult upnp.Result
 
 	for _, m := range metrics {
-		if m.Service != last_service || m.Action != last_method {
+		if m.Service != lastService || m.Action != lastMethod {
 			service, ok := root.Services[m.Service]
 			if !ok {
 				// TODO
@@ -273,18 +273,18 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 				continue
 			}
 
-			last_result, err = action.Call()
+			lastResult, err = action.Call()
 			if err != nil {
 				fmt.Println(err)
-				collect_errors.Inc()
+				collectErrors.Inc()
 				continue
 			}
 		}
 
-		val, ok := last_result[m.Result]
+		val, ok := lastResult[m.Result]
 		if !ok {
 			fmt.Println("result not found", m.Result)
-			collect_errors.Inc()
+			collectErrors.Inc()
 			continue
 		}
 
@@ -306,7 +306,7 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 		default:
 			fmt.Println("unknown", val)
-			collect_errors.Inc()
+			collectErrors.Inc()
 			continue
 
 		}
@@ -321,7 +321,7 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func test() {
-	root, err := upnp.LoadServices(*flag_gateway_address, uint16(*flag_gateway_port), *flag_gateway_username, *flag_gateway_password)
+	root, err := upnp.LoadServices(*flagGatewayAddress, uint16(*flagGatewayPort), *flagGatewayUsername, *flagGatewayPassword)
 	if err != nil {
 		panic(err)
 	}
@@ -334,7 +334,7 @@ func test() {
 
 			res, err := a.Call()
 			if err != nil {
-				fmt.Errorf("unexpected error", err)
+				log.Printf("unexpected error: %v\n", err)
 				continue
 			}
 
@@ -349,23 +349,23 @@ func test() {
 func main() {
 	flag.Parse()
 
-	if *flag_test {
+	if *flagTest {
 		test()
 		return
 	}
 
 	collector := &FritzboxCollector{
-		Gateway:  *flag_gateway_address,
-		Port:     uint16(*flag_gateway_port),
-		Username: *flag_gateway_username,
-		Password: *flag_gateway_password,
+		Gateway:  *flagGatewayAddress,
+		Port:     uint16(*flagGatewayPort),
+		Username: *flagGatewayUsername,
+		Password: *flagGatewayPassword,
 	}
 
 	go collector.LoadServices()
 
 	prometheus.MustRegister(collector)
-	prometheus.MustRegister(collect_errors)
+	prometheus.MustRegister(collectErrors)
 
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(*flag_addr, nil))
+	log.Fatal(http.ListenAndServe(*flagAddr, nil))
 }

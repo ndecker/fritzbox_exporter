@@ -38,7 +38,7 @@ import (
 
 // For TR64: curl http://fritz.box:49000/tr64desc.xmll
 
-const text_xml = `text/xml; charset="utf-8"`
+const textXml = `text/xml; charset="utf-8"`
 
 var ErrInvalidSOAPResponse = errors.New("invalid SOAP response")
 
@@ -99,7 +99,7 @@ type Action struct {
 	ArgumentMap map[string]*Argument // Map of arguments indexed by .Name
 }
 
-// Returns if the action seems to be a query for information.
+// IsGetOnly returns if the action seems to be a query for information.
 // This is determined by checking if the action has no input arguments and at least one output argument.
 func (a *Action) IsGetOnly() bool {
 	for _, a := range a.Arguments {
@@ -108,9 +108,6 @@ func (a *Action) IsGetOnly() bool {
 		}
 	}
 	return len(a.Arguments) > 0
-
-	return false
-
 }
 
 // An Argument to an action
@@ -142,12 +139,22 @@ func (r *Root) load() error {
 	if err != nil {
 		return err
 	}
+	defer closeIgnoringError(igddesc.Body)
 
-	dec := xml.NewDecoder(igddesc.Body)
+	if igddesc.StatusCode == 404 {
+		return fmt.Errorf("http error 401 when loading service description. Is UPnP activated? (see Readme)")
+	}
+
+	body, err := io.ReadAll(igddesc.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	dec := xml.NewDecoder(bytes.NewReader(body))
 
 	err = dec.Decode(r)
 	if err != nil {
-		return fmt.Errorf("failed to decode igdesc.xml: %w", err)
+		return fmt.Errorf("failed to decode igdesc.xml: %w; body: %s", err, body)
 	}
 
 	r.Services = make(map[string]*Service)
@@ -161,6 +168,12 @@ func (r *Root) loadTr64() error {
 
 	if err != nil {
 		return fmt.Errorf("failed to decode tr64desc.xml: %w", err)
+	}
+
+	defer closeIgnoringError(igddesc.Body)
+
+	if igddesc.StatusCode == 404 {
+		return fmt.Errorf("http error 401 when loading service description. Is UPnP activated? (see Readme)")
 	}
 
 	dec := xml.NewDecoder(igddesc.Body)
@@ -248,7 +261,7 @@ func (a *Action) Call() (Result, error) {
 
 	action := fmt.Sprintf("%s#%s", a.service.ServiceType, a.Name)
 
-	req.Header.Set("Content-Type", text_xml)
+	req.Header.Set("Content-Type", textXml)
 	req.Header.Set("SoapAction", action)
 
 	t := dac.NewTransport(a.service.Device.root.Username, a.service.Device.root.Password)
@@ -257,13 +270,13 @@ func (a *Action) Call() (Result, error) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer resp.Body.Close()
+	defer closeIgnoringError(resp.Body)
 
 	if resp.StatusCode == 401 {
 		return nil, fmt.Errorf("cannot read service %s: status 401 unauthorized", a.Name)
 	}
 
-	data,err  := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read request body: %w", err)
 	}
@@ -321,7 +334,7 @@ func convertResult(val string, arg *Argument) (interface{}, error) {
 	case "string":
 		return val, nil
 	case "boolean":
-		return bool(val == "1"), nil
+		return val == "1", nil
 
 	case "ui1", "ui2", "ui4":
 		// type ui4 can contain values greater than 2^32!
@@ -329,14 +342,14 @@ func convertResult(val string, arg *Argument) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		return uint64(res), nil
+		return res, nil
 	default:
 		return nil, fmt.Errorf("unknown datatype: %s", arg.StateVariable.DataType)
 
 	}
 }
 
-// Load the services tree from an device.
+// LoadServices loads the services tree from a device.
 func LoadServices(device string, port uint16, username string, password string) (*Root, error) {
 	var root = &Root{
 		BaseUrl:  fmt.Sprintf("http://%s:%d", device, port),
@@ -346,7 +359,7 @@ func LoadServices(device string, port uint16, username string, password string) 
 
 	err := root.load()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load services: %w", err)
+		return nil, err // already annotated
 	}
 
 	var rootTr64 = &Root{
@@ -357,7 +370,7 @@ func LoadServices(device string, port uint16, username string, password string) 
 
 	err = rootTr64.loadTr64()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load TR64 services: %w", err)
+		return nil, err // already annotated
 	}
 
 	for k, v := range rootTr64.Services {
@@ -365,4 +378,9 @@ func LoadServices(device string, port uint16, username string, password string) 
 	}
 
 	return root, nil
+}
+
+// closeIgnoringError closes c an ignores errors
+func closeIgnoringError(c io.Closer) {
+	_ = c.Close()
 }
