@@ -41,6 +41,15 @@ Usage:
       -test
         	print all available metrics to stdout
 
+##  Prerequisites
+### FRITZ!OS 7.00+
+
+`Heimnetz` > `Netzwerk` > `Netwerkeinstellungen` > `Statusinformationen über UPnP übertragen`
+
+### FRITZ!OS 6
+
+`Heimnetz` > `Heimnetzübersicht` > `Netzwerkeinstellungen` > `Statusinformationen über UPnP übertragen`
+
 ## Exported metrics
 
 These metrics are exported:
