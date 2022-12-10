@@ -21,12 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"strconv"
-	"strings"
-
-	dac "github.com/123Haynes/go-http-digest-auth-client"
+	"net/url"
 )
 
 // curl http://fritz.box:49000/igddesc.xml
@@ -40,13 +36,24 @@ import (
 
 const textXml = `text/xml; charset="utf-8"`
 
+const (
+	igdServiceDescriptor  = "igddesc.xml"
+	tr64ServiceDescriptor = "tr64desc.xml"
+)
+
 var ErrInvalidSOAPResponse = errors.New("invalid SOAP response")
+
+type ConnectionParameters struct {
+	Device   string // Hostname or IP
+	Port     int
+	Username string
+	Password string
+}
 
 // Root of the UPNP tree
 type Root struct {
-	BaseUrl  string
-	Username string
-	Password string
+	baseUrl  string
+	params   ConnectionParameters
 	Device   Device              `xml:"device"`
 	Services map[string]*Service // Map of all services indexed by .ServiceType
 }
@@ -90,103 +97,6 @@ type scpdRoot struct {
 	StateVariables []*StateVariable `xml:"serviceStateTable>stateVariable"`
 }
 
-// An UPNP Acton on a service
-type Action struct {
-	service *Service
-
-	Name        string               `xml:"name"`
-	Arguments   []*Argument          `xml:"argumentList>argument"`
-	ArgumentMap map[string]*Argument // Map of arguments indexed by .Name
-}
-
-// IsGetOnly returns if the action seems to be a query for information.
-// This is determined by checking if the action has no input arguments and at least one output argument.
-func (a *Action) IsGetOnly() bool {
-	for _, a := range a.Arguments {
-		if a.Direction == "in" {
-			return false
-		}
-	}
-	return len(a.Arguments) > 0
-}
-
-// An Argument to an action
-type Argument struct {
-	Name                 string `xml:"name"`
-	Direction            string `xml:"direction"`
-	RelatedStateVariable string `xml:"relatedStateVariable"`
-	StateVariable        *StateVariable
-}
-
-// A state variable that can be manipulated through actions
-type StateVariable struct {
-	Name         string `xml:"name"`
-	DataType     string `xml:"dataType"`
-	DefaultValue string `xml:"defaultValue"`
-}
-
-// The result of a Call() contains all output arguments of the call.
-// The map is indexed by the name of the state variable.
-// The type of the value is string, uint64 or bool depending of the DataType of the variable.
-type Result map[string]interface{}
-
-// load the whole tree
-func (r *Root) load() error {
-	igddesc, err := http.Get(
-		fmt.Sprintf("%s/igddesc.xml", r.BaseUrl),
-	)
-
-	if err != nil {
-		return err
-	}
-	defer closeIgnoringError(igddesc.Body)
-
-	if igddesc.StatusCode == 404 {
-		return fmt.Errorf("http error 401 when loading service description. Is UPnP activated? (see Readme)")
-	}
-
-	body, err := io.ReadAll(igddesc.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	dec := xml.NewDecoder(bytes.NewReader(body))
-
-	err = dec.Decode(r)
-	if err != nil {
-		return fmt.Errorf("failed to decode igdesc.xml: %w; body: %s", err, body)
-	}
-
-	r.Services = make(map[string]*Service)
-	return r.Device.fillServices(r)
-}
-
-func (r *Root) loadTr64() error {
-	igddesc, err := http.Get(
-		fmt.Sprintf("%s/tr64desc.xml", r.BaseUrl),
-	)
-
-	if err != nil {
-		return fmt.Errorf("failed to decode tr64desc.xml: %w", err)
-	}
-
-	defer closeIgnoringError(igddesc.Body)
-
-	if igddesc.StatusCode == 404 {
-		return fmt.Errorf("http error 401 when loading service description. Is UPnP activated? (see Readme)")
-	}
-
-	dec := xml.NewDecoder(igddesc.Body)
-
-	err = dec.Decode(r)
-	if err != nil {
-		return err
-	}
-
-	r.Services = make(map[string]*Service)
-	return r.Device.fillServices(r)
-}
-
 // load all service descriptions
 func (d *Device) fillServices(r *Root) error {
 	d.root = r
@@ -194,7 +104,7 @@ func (d *Device) fillServices(r *Root) error {
 	for _, s := range d.Services {
 		s.Device = d
 
-		response, err := http.Get(r.BaseUrl + s.SCPDUrl)
+		response, err := http.Get(r.baseUrl + s.SCPDUrl)
 		if err != nil {
 			return err
 		}
@@ -239,141 +149,62 @@ func (d *Device) fillServices(r *Root) error {
 	return nil
 }
 
-// Call an action.
-// Currently only actions without input arguments are supported.
-func (a *Action) Call() (Result, error) {
-	bodystr := fmt.Sprintf(`
-        <?xml version='1.0' encoding='utf-8'?>
-        <s:Envelope s:encodingStyle='http://schemas.xmlsoap.org/soap/encoding/' xmlns:s='http://schemas.xmlsoap.org/soap/envelope/'>
-            <s:Body>
-                <u:%s xmlns:u='%s' />
-            </s:Body>
-        </s:Envelope>
-    `, a.Name, a.service.ServiceType)
+// LoadServiceRoot loads a service descriptor and poplates a Service Root
+func LoadServiceRoot(params ConnectionParameters, descriptor string) (*Root, error) {
+	var root = &Root{
+		params:   params,
+		baseUrl:  fmt.Sprintf("http://%s:%d", params.Device, params.Port),
+		Services: make(map[string]*Service),
+	}
 
-	url := a.service.Device.root.BaseUrl + a.service.ControlUrl
-	body := strings.NewReader(bodystr)
-
-	req, err := http.NewRequest("POST", url, body)
+	descUrl, err := url.JoinPath(root.baseUrl, descriptor)
 	if err != nil {
 		return nil, err
 	}
 
-	action := fmt.Sprintf("%s#%s", a.service.ServiceType, a.Name)
-
-	req.Header.Set("Content-Type", textXml)
-	req.Header.Set("SoapAction", action)
-
-	t := dac.NewTransport(a.service.Device.root.Username, a.service.Device.root.Password)
-
-	resp, err := t.RoundTrip(req)
+	igddesc, err := http.Get(descUrl)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
-	defer closeIgnoringError(resp.Body)
+	defer closeIgnoringError(igddesc.Body)
 
-	if resp.StatusCode == 401 {
-		return nil, fmt.Errorf("cannot read service %s: status 401 unauthorized", a.Name)
+	if igddesc.StatusCode == 404 {
+		return nil, fmt.Errorf("http error 401 when loading service description. Is UPnP activated? (see Readme)")
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(igddesc.Body)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read request body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	return a.parseSoapResponse(data)
+	dec := xml.NewDecoder(bytes.NewReader(body))
 
-}
-
-func (a *Action) parseSoapResponse(data []byte) (Result, error) {
-	res := make(Result)
-	dec := xml.NewDecoder(bytes.NewReader(data))
-
-	for {
-		t, err := dec.Token()
-		if err == io.EOF {
-			return res, nil
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse soap response: %w; body: %s", err, data)
-		}
-
-		if se, ok := t.(xml.StartElement); ok {
-			arg, ok := a.ArgumentMap[se.Name.Local]
-
-			if ok {
-				t2, err := dec.Token()
-				if err != nil {
-					return nil, err
-				}
-
-				var val string
-				switch element := t2.(type) {
-				case xml.EndElement:
-					val = ""
-				case xml.CharData:
-					val = string(element)
-				default:
-					return nil, ErrInvalidSOAPResponse
-				}
-
-				converted, err := convertResult(val, arg)
-				if err != nil {
-					return nil, err
-				}
-				res[arg.StateVariable.Name] = converted
-			}
-		}
-
+	err = dec.Decode(root)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode igdesc.xml: %w; body: %s", err, body)
 	}
-}
 
-func convertResult(val string, arg *Argument) (interface{}, error) {
-	switch arg.StateVariable.DataType {
-	case "string":
-		return val, nil
-	case "boolean":
-		return val == "1", nil
-
-	case "ui1", "ui2", "ui4":
-		// type ui4 can contain values greater than 2^32!
-		res, err := strconv.ParseUint(val, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		return res, nil
-	default:
-		return nil, fmt.Errorf("unknown datatype: %s", arg.StateVariable.DataType)
-
+	err = root.Device.fillServices(root)
+	if err != nil {
+		return nil, err
 	}
+
+	return root, nil
 }
 
 // LoadServices loads the services tree from a device.
-func LoadServices(device string, port uint16, username string, password string) (*Root, error) {
-	var root = &Root{
-		BaseUrl:  fmt.Sprintf("http://%s:%d", device, port),
-		Username: username,
-		Password: password,
-	}
-
-	err := root.load()
+func LoadServices(params ConnectionParameters) (*Root, error) {
+	root, err := LoadServiceRoot(params, igdServiceDescriptor)
 	if err != nil {
 		return nil, err // already annotated
 	}
 
-	var rootTr64 = &Root{
-		BaseUrl:  fmt.Sprintf("http://%s:%d", device, port),
-		Username: username,
-		Password: password,
-	}
-
-	err = rootTr64.loadTr64()
+	rootTR64, err := LoadServiceRoot(params, tr64ServiceDescriptor)
 	if err != nil {
 		return nil, err // already annotated
 	}
 
-	for k, v := range rootTr64.Services {
+	for k, v := range rootTR64.Services {
 		root.Services[k] = v
 	}
 
