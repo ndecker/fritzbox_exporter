@@ -1,0 +1,17 @@
+version: "3.3"
+services:
+  httpd:
+    image: httpd:latest
+    volumes:
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+      - ./.htdigest:/usr/local/apache2/conf/.htdigest:ro
+    networks:
+      default_net:
+        ipv4_address: 172.16.1.5
+networks:
+  default_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.1.1/27 # 1-30
