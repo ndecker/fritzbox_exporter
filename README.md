@@ -4,7 +4,9 @@ This exporter exports some variables from an
 [AVM Fritzbox](http://avm.de/produkte/fritzbox/)
 to prometheus.
 
-This exporter is tested with a Fritzbox 7490 and 7390 with software version 06.51 and a FRITZ!Box 7362 SL with software version 7.12.
+This exporter is tested with:
+ - Fritz!Box 6490, 7490 and 7390 with software version 06.51 and 06.52.
+ - Fritz!Box 7362 SL with software version 7.12.
 
 ## Building
 
