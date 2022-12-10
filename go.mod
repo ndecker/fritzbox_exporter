@@ -2,13 +2,17 @@ module github.com/ndecker/fritzbox_exporter
 
 go 1.17
 
-require github.com/prometheus/client_golang v0.8.1-0.20161017123536-334af0119a8f
+require github.com/prometheus/client_golang v1.14.0
 
 require (
-	github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a // indirect
-	github.com/golang/protobuf v0.0.0-20160817174113-f592bd283e9e // indirect
+	github.com/123Haynes/go-http-digest-auth-client v0.3.1-0.20171226204513-4c2ff1556cab // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/prometheus/client_model v0.0.0-20150212101744-fa8ad6fec335 // indirect
-	github.com/prometheus/common v0.0.0-20160801171955-ebdfc6da4652 // indirect
-	github.com/prometheus/procfs v0.0.0-20160411190841-abf152e5f3e9 // indirect
+	github.com/prometheus/client_model v0.3.0 // indirect
+	github.com/prometheus/common v0.37.0 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 )
