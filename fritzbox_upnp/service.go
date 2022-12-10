@@ -346,7 +346,7 @@ func LoadServices(device string, port uint16, username string, password string) 
 
 	err := root.load()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot load services: %w", err)
 	}
 
 	var rootTr64 = &Root{
@@ -357,7 +357,7 @@ func LoadServices(device string, port uint16, username string, password string) 
 
 	err = rootTr64.loadTr64()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot load TR64 services: %w", err)
 	}
 
 	for k, v := range rootTr64.Services {
