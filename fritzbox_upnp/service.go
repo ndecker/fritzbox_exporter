@@ -37,21 +37,25 @@ import (
 const textXml = `text/xml; charset="utf-8"`
 
 const (
-	igdServiceDescriptor  = "igddesc.xml"
-	tr64ServiceDescriptor = "tr64desc.xml"
+	IGDServiceDescriptor  = "igddesc.xml"
+	TR64ServiceDescriptor = "tr64desc.xml"
 )
 
 var ErrInvalidSOAPResponse = errors.New("invalid SOAP response")
 
 type ConnectionParameters struct {
-	Device   string // Hostname or IP
-	Port     int
-	Username string
-	Password string
+	Device          string // Hostname or IP
+	Port            int
+	PortTLS         int
+	UseTLS          bool
+	Username        string
+	Password        string
+	AllowSelfSigned bool
 }
 
 // Root of the UPNP tree
 type Root struct {
+	client   *http.Client
 	baseUrl  string
 	params   ConnectionParameters
 	Device   Device              `xml:"device"`
@@ -104,9 +108,9 @@ func (d *Device) fillServices(r *Root) error {
 	for _, s := range d.Services {
 		s.Device = d
 
-		response, err := http.Get(r.baseUrl + s.SCPDUrl)
+		response, err := r.client.Get(r.baseUrl + s.SCPDUrl)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot load services for %s: %w", s.SCPDUrl, err)
 		}
 
 		var scpd scpdRoot
@@ -149,11 +153,20 @@ func (d *Device) fillServices(r *Root) error {
 	return nil
 }
 
-// LoadServiceRoot loads a service descriptor and poplates a Service Root
+// LoadServiceRoot loads a service descriptor and populates a Service Root
 func LoadServiceRoot(params ConnectionParameters, descriptor string) (*Root, error) {
+	var baseUrl string
+	if params.UseTLS {
+		baseUrl = fmt.Sprintf("https://%s:%d", params.Device, params.PortTLS)
+	} else {
+		baseUrl = fmt.Sprintf("http://%s:%d", params.Device, params.Port)
+
+	}
+
 	var root = &Root{
 		params:   params,
-		baseUrl:  fmt.Sprintf("http://%s:%d", params.Device, params.Port),
+		client:   setupClient(params.Username, params.Password, params.AllowSelfSigned),
+		baseUrl:  baseUrl,
 		Services: make(map[string]*Service),
 	}
 
@@ -162,7 +175,7 @@ func LoadServiceRoot(params ConnectionParameters, descriptor string) (*Root, err
 		return nil, err
 	}
 
-	igddesc, err := http.Get(descUrl)
+	igddesc, err := root.client.Get(descUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -187,25 +200,6 @@ func LoadServiceRoot(params ConnectionParameters, descriptor string) (*Root, err
 	err = root.Device.fillServices(root)
 	if err != nil {
 		return nil, err
-	}
-
-	return root, nil
-}
-
-// LoadServices loads the services tree from a device.
-func LoadServices(params ConnectionParameters) (*Root, error) {
-	root, err := LoadServiceRoot(params, igdServiceDescriptor)
-	if err != nil {
-		return nil, err // already annotated
-	}
-
-	rootTR64, err := LoadServiceRoot(params, tr64ServiceDescriptor)
-	if err != nil {
-		return nil, err // already annotated
-	}
-
-	for k, v := range rootTR64.Services {
-		root.Services[k] = v
 	}
 
 	return root, nil

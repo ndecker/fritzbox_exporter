@@ -2,10 +2,12 @@ module github.com/ndecker/fritzbox_exporter
 
 go 1.18
 
-require github.com/prometheus/client_golang v1.14.0
+require (
+	github.com/ndecker/go-http-digest-auth-client v0.4.0
+	github.com/prometheus/client_golang v1.14.0
+)
 
 require (
-	github.com/123Haynes/go-http-digest-auth-client v0.3.1-0.20171226204513-4c2ff1556cab // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect

@@ -12,7 +12,7 @@ type Metric struct {
 	MetricType prometheus.ValueType
 }
 
-var metrics = []*Metric{
+var IGDMetrics = []*Metric{
 	{
 		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
 		Action:  "GetTotalPacketsReceived",
@@ -147,6 +147,9 @@ var metrics = []*Metric{
 		),
 		MetricType: prometheus.GaugeValue,
 	},
+}
+
+var TR64Metrics = []*Metric{
 	{
 		Service: "urn:dslforum-org:service:WLANConfiguration:1",
 		Action:  "GetTotalAssociations",

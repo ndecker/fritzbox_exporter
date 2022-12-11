@@ -5,15 +5,13 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
-
-	dac "github.com/123Haynes/go-http-digest-auth-client"
+	"time"
 )
 
-// An UPNP Acton on a service
+// Action is an UPNP Action on a service
 type Action struct {
 	service *Service
 
@@ -78,11 +76,11 @@ func (a *Action) Call() (Result, error) {
 	req.Header.Set("Content-Type", textXml)
 	req.Header.Set("SoapAction", action)
 
-	t := dac.NewTransport(a.service.Device.root.params.Username, a.service.Device.root.params.Password)
+	client := a.service.Device.root.client
 
-	resp, err := t.RoundTrip(req)
+	resp, err := client.Transport.RoundTrip(req)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, fmt.Errorf("cannod call %s: %w", a.Name, err)
 	}
 	defer closeIgnoringError(resp.Body)
 
@@ -157,8 +155,21 @@ func convertResult(val string, arg *Argument) (interface{}, error) {
 			return nil, err
 		}
 		return res, nil
+	case "i1", "i2", "i4":
+		res, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
+	case "dateTime":
+		const timeLayout = "2006-01-02T15:04:05"
+		res, err := time.Parse(timeLayout, val)
+		if err != nil {
+			return nil, err
+		}
+		return res, nil
 	default:
-		return nil, fmt.Errorf("unknown datatype: %s", arg.StateVariable.DataType)
+		return nil, fmt.Errorf("unknown datatype: %s: %s", arg.StateVariable.DataType, val)
 
 	}
 }

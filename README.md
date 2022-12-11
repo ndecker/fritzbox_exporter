@@ -31,6 +31,7 @@ This exporter is known to work with the following models:
     go install
 
 ### Docker
+
     git clone https://github.com/ndecker/fritzbox_exporter/
     docker build -t fritzbox_exporter fritzbox_exporter
 
@@ -39,21 +40,19 @@ This exporter is known to work with the following models:
 In the configuration of the Fritzbox the option "Statusinformationen über UPnP übertragen" in the dialog "Heimnetz >
 Heimnetzübersicht > Netzwerkeinstellungen" has to be enabled.
 
-Usage:
+## Configuration
 
-    ./fritzbox_exporter -h
-    -gateway-address string
-       	The hostname or IP of the FRITZ!Box (default "fritz.box")
-    -gateway-port int
-    	The port of the FRITZ!Box UPnP service (default 49000)
-    -listen-address string
-    	The address to listen on for HTTP requests. (default ":9133")
-    -password string
-    	The password for the FRITZ!Box UPnP service
-    -test
-    	print all available metrics to stdout
-    -username string
-    	The user for the FRITZ!Box UPnP service
+| command line parameter | environment variable      | default   |                                                |
+|------------------------|---------------------------|-----------|------------------------------------------------|
+| -listen-address        | FRITZBOX_EXPORTER_LISTEN  | :9133     | The address to listen on for HTTP requests     |
+| -gateway-address       | FRITZBOX_DEVICE           | fritz.box | The hostname or IP of the FRITZ!Box            |
+| -gateway-port          | FRITZBOX_PORT             | 49000     | The port of the FRITZ!Box UPnP service         |
+| -gateway-port          | FRITZBOX_PORT_TLS         | 49443     | The port of the FRITZ!Box TLS UPnP service     |
+| -username              | FRITZBOX_USERNAME         |           | The user for the FRITZ!Box UPnP service        |
+| -password              | FRITZBOX_PASSWORD         |           | The password for the FRITZ!Box UPnP service    |
+| -use-tls               | FRITZBOX_USE_TLS          | true      | Use TLS/HTTPS connection to FRITZ!Box          |
+| -allow-selfsigned      | FTITZBOX_ALLOW_SELFSIGNED | true      | Allow selfsigned certificate from FRITZ!Box    |
+| -test                  |                           |           | Print all available metrics to stdout and exit |
 
 
 ##  Prerequisites
