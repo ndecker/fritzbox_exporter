@@ -1,4 +1,4 @@
-// Query UPNP variables from Fritz!Box devices.
+// Package fritzbox_upnp queries UPNP variables from Fritz!Box devices.
 package fritzbox_upnp
 
 // Copyright 2016 Nils Decker
@@ -26,13 +26,7 @@ import (
 )
 
 // curl http://fritz.box:49000/igddesc.xml
-// curl http://fritz.box:49000/any.xml
-// curl http://fritz.box:49000/igdconnSCPD.xml
-// curl http://fritz.box:49000/igdicfgSCPD.xml
-// curl http://fritz.box:49000/igddslSCPD.xml
-// curl http://fritz.box:49000/igd2ipv6fwcSCPD.xml
-
-// For TR64: curl http://fritz.box:49000/tr64desc.xmll
+// curl http://fritz.box:49000/tr64desc.xmll
 
 const textXml = `text/xml; charset="utf-8"`
 
@@ -62,7 +56,7 @@ type Root struct {
 	Services map[string]*Service // Map of all services indexed by .ServiceType
 }
 
-// An UPNP Device
+// Device represents a UPNP Device
 type Device struct {
 	root *Root
 
@@ -82,7 +76,7 @@ type Device struct {
 	PresentationUrl string `xml:"presentationURL"`
 }
 
-// An UPNP Service
+// Service represents a UPNP Service
 type Service struct {
 	Device *Device
 
@@ -114,7 +108,6 @@ func (d *Device) fillServices(r *Root) error {
 		}
 
 		var scpd scpdRoot
-
 		dec := xml.NewDecoder(response.Body)
 		err = dec.Decode(&scpd)
 		if err != nil {

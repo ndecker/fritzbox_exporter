@@ -39,22 +39,22 @@ type Argument struct {
 	StateVariable        *StateVariable
 }
 
-// A state variable that can be manipulated through actions
+// StateVariable that can be manipulated through actions
 type StateVariable struct {
 	Name         string `xml:"name"`
 	DataType     string `xml:"dataType"`
 	DefaultValue string `xml:"defaultValue"`
 }
 
-// The result of a Call() contains all output arguments of the call.
+// Result of a Call() contains all output arguments of the call.
 // The map is indexed by the name of the state variable.
-// The type of the value is string, uint64 or bool depending of the DataType of the variable.
+// The type of the value is string, uint64 or bool depending on the DataType of the variable.
 type Result map[string]interface{}
 
 // Call an action.
 // Currently only actions without input arguments are supported.
 func (a *Action) Call() (Result, error) {
-	bodystr := fmt.Sprintf(`
+	bodyStr := fmt.Sprintf(`
         <?xml version='1.0' encoding='utf-8'?>
         <s:Envelope s:encodingStyle='http://schemas.xmlsoap.org/soap/encoding/' xmlns:s='http://schemas.xmlsoap.org/soap/envelope/'>
             <s:Body>
@@ -64,7 +64,7 @@ func (a *Action) Call() (Result, error) {
     `, a.Name, a.service.ServiceType)
 
 	url := a.service.Device.root.baseUrl + a.service.ControlUrl
-	body := strings.NewReader(bodystr)
+	body := strings.NewReader(bodyStr)
 
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
@@ -94,7 +94,6 @@ func (a *Action) Call() (Result, error) {
 	}
 
 	return a.parseSoapResponse(data)
-
 }
 
 func (a *Action) parseSoapResponse(data []byte) (Result, error) {
