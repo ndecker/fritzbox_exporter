@@ -16,31 +16,40 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	upnp "github.com/ndecker/fritzbox_exporter/fritzbox_upnp"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+
+	upnp "github.com/ndecker/fritzbox_exporter/fritzbox_upnp"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
-	listenAddress := GetEnv("FRITZBOX_EXPORTER_LISTEN", ":9133")
+	err := run()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
+	listenAddress := getEnv("FRITZBOX_EXPORTER_LISTEN", ":9133")
 	flag.StringVar(&listenAddress, "listen-address", listenAddress, "The address to listen on for HTTP requests.")
 
-	flagTestIGD := flag.Bool("test-igd", false, "print all available IGD metrics to stdout")
-	flagTestTR64 := flag.Bool("test-tr64", false, "print all available TR64 metrics to stdout")
+	flagMetricsYamlFile := flag.String("metrics", os.Getenv("FRITZBOX_EXPORTER_METRICS"), "YAML file for metrics")
+
+	flagTest := flag.Bool("test-metrics", false, "Test which metrics can be read and print YAML metrics file")
 
 	parameters := upnp.ConnectionParameters{
-		Device:          GetEnv("FRITZBOX_DEVICE", "fritz.box"),
-		Port:            GetEnvInt("FRITZBOX_PORT", 49000),
-		PortTLS:         GetEnvInt("FRITZBOX_PORT_TLS", 49443),
-		Username:        GetEnv("FRITZBOX_USERNAME", ""),
-		Password:        GetEnv("FRITZBOX_PASSWORD", ""),
-		UseTLS:          GetEnv("FRITZBOX_USE_TLS", "true") == "true",
-		AllowSelfSigned: GetEnv("FRITZBOX_ALLOW_SELFSIGNED", "true") == "true",
+		Device:          getEnv("FRITZBOX_DEVICE", "fritz.box"),
+		Port:            getEnvInt("FRITZBOX_PORT", 49000),
+		PortTLS:         getEnvInt("FRITZBOX_PORT_TLS", 49443),
+		Username:        getEnv("FRITZBOX_USERNAME", ""),
+		Password:        getEnv("FRITZBOX_PASSWORD", ""),
+		UseTLS:          getEnv("FRITZBOX_USE_TLS", "true") == "true",
+		AllowSelfSigned: getEnv("FRITZBOX_ALLOW_SELFSIGNED", "true") == "true",
 	}
 
 	flag.StringVar(&parameters.Device, "gateway-address", parameters.Device, "The hostname or IP of the FRITZ!Box")
@@ -53,59 +62,55 @@ func main() {
 
 	flag.Parse()
 
-	if *flagTestIGD {
-		test(parameters, upnp.IGDServiceDescriptor)
-		return
-	}
-	if *flagTestTR64 {
+	if *flagTest {
+		err := testMetrics(parameters, upnp.IGDServiceDescriptor)
+		if err != nil {
+			return err
+		}
+
 		if parameters.Username == "" {
 			log.Fatal("no username/password set for TR64")
 		}
-		test(parameters, upnp.TR64ServiceDescriptor)
-		return
+		err = testMetrics(parameters, upnp.TR64ServiceDescriptor)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
-	collector := &FritzboxCollector{
-		Parameters: parameters,
+	var metricsYaml []byte
+	if *flagMetricsYamlFile == "" {
+		metricsYaml = defaultMetricsYaml
+	} else {
+		f, err := os.Open(*flagMetricsYamlFile)
+		if err != nil {
+			return err
+		}
+
+		metricsYaml, err = io.ReadAll(f)
+		if err != nil {
+			return err
+		}
+		_ = f.Close()
 	}
 
-	go collector.LoadServices()
+	metrics, err := loadMetrics(metricsYaml)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("loaded %d metrics", len(metrics))
+
+	collector := NewCollector(parameters, metrics)
 
 	prometheus.MustRegister(collector)
-	prometheus.MustRegister(collectErrors)
+	prometheus.MustRegister(collectMetrics...)
 
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(listenAddress, nil))
+	return http.ListenAndServe(listenAddress, nil)
 }
 
-func test(p upnp.ConnectionParameters, desc string) {
-	root, err := upnp.LoadServiceRoot(p, desc)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, s := range root.Services {
-		fmt.Println(s.SCPDUrl)
-		for _, a := range s.Actions {
-			if !a.IsGetOnly() {
-				continue
-			}
-
-			res, err := a.Call()
-			if err != nil {
-				log.Printf("unexpected error: %v\n", err)
-				continue
-			}
-
-			fmt.Printf("  %s\n", a.Name)
-			for _, arg := range a.Arguments {
-				fmt.Printf("    %s: %v\n", arg.RelatedStateVariable, res[arg.StateVariable.Name])
-			}
-		}
-	}
-}
-
-func GetEnv(name string, def string) string {
+func getEnv(name string, def string) string {
 	env := os.Getenv(name)
 	if env != "" {
 		return env
@@ -114,7 +119,7 @@ func GetEnv(name string, def string) string {
 	}
 }
 
-func GetEnvInt(name string, def int) int {
+func getEnvInt(name string, def int) int {
 	env := os.Getenv(name)
 	if env != "" {
 		val, err := strconv.Atoi(env)

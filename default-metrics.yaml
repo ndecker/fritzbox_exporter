@@ -1,0 +1,80 @@
+- metric: gateway_wan_packets_received
+  help: packets received on gateway WAN interface
+  type: counter
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetTotalPacketsReceived
+  result: TotalPacketsReceived
+- metric: gateway_wan_packets_sent
+  help: packets sent on gateway WAN interface
+  type: counter
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetTotalPacketsSent
+  result: TotalPacketsSent
+- metric: gateway_wan_bytes_received
+  help: bytes received on gateway WAN interface
+  type: counter
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetAddonInfos
+  result: TotalBytesReceived
+- metric: gateway_wan_bytes_sent
+  help: bytes sent on gateway WAN interface
+  type: counter
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetAddonInfos
+  result: TotalBytesSent
+- metric: gateway_wan_bytes_send_rate
+  help: byte send rate on gateway WAN interface
+  type: gauge
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetAddonInfos
+  result: ByteSendRate
+- metric: gateway_wan_bytes_receive_rate
+  help: byte receive rate on gateway WAN interface
+  type: gauge
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetAddonInfos
+  result: ByteReceiveRate
+- metric: gateway_wan_layer1_upstream_max_bitrate
+  help: Layer1 upstream max bitrate
+  type: gauge
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetCommonLinkProperties
+  result: Layer1UpstreamMaxBitRate
+- metric: gateway_wan_layer1_downstream_max_bitrate
+  help: Layer1 downstream max bitrate
+  type: gauge
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetCommonLinkProperties
+  result: Layer1DownstreamMaxBitRate
+- metric: gateway_wan_layer1_link_status
+  help: Status of physical link (Up = 1)
+  type: gauge
+  service: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1
+  action: GetCommonLinkProperties
+  result: PhysicalLinkStatus
+  okvalue: Up
+- metric: gateway_wan_connection_status
+  help: WAN connection status (Connected = 1)
+  type: gauge
+  service: urn:schemas-upnp-org:service:WANIPConnection:1
+  action: GetStatusInfo
+  result: ConnectionStatus
+  okvalue: Connected
+- metric: gateway_wan_connection_uptime_seconds
+  help: WAN connection uptime
+  type: gauge
+  service: urn:schemas-upnp-org:service:WANIPConnection:1
+  action: GetStatusInfo
+  result: Uptime
+- metric: gateway_wlan_current_connections
+  help: current WLAN connections
+  type: gauge
+  service: urn:dslforum-org:service:WLANConfiguration:1
+  action: GetTotalAssociations
+  result: TotalAssociations
+- metric: "gateway_version"
+  type: "gauge"
+  service: urn:dslforum-org:service:DeviceInfo:1
+  action: GetInfo
+  result: SoftwareVersion
+  labelname: version

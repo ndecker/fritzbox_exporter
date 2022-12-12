@@ -1,165 +1,135 @@
 package main
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	_ "embed"
+	"fmt"
+	upnp "github.com/ndecker/fritzbox_exporter/fritzbox_upnp"
+	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/yaml.v3"
+	"io"
+	"log"
+	"os"
+	"strings"
+)
+
+//go:embed default-metrics.yaml
+var defaultMetricsYaml []byte
 
 type Metric struct {
-	Service string
-	Action  string
-	Result  string
-	OkValue string
+	Metric string
+	Help   string
+	Type   string
 
-	Desc       *prometheus.Desc
-	MetricType prometheus.ValueType
+	Service   string
+	Action    string
+	Result    string
+	OkValue   string `yaml:",omitempty"`
+	LabelName string `yaml:",omitempty"`
+
+	Source       string `yaml:",omitempty"`
+	ExampleValue string `yaml:",omitempty"`
+
+	metricType prometheus.ValueType
+	desc       *prometheus.Desc
 }
 
-var IGDMetrics = []*Metric{
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetTotalPacketsReceived",
-		Result:  "TotalPacketsReceived",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_packets_received",
-			"packets received on gateway WAN interface",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.CounterValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetTotalPacketsSent",
-		Result:  "TotalPacketsSent",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_packets_sent",
-			"packets sent on gateway WAN interface",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.CounterValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetAddonInfos",
-		Result:  "TotalBytesReceived",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_bytes_received",
-			"bytes received on gateway WAN interface",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.CounterValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetAddonInfos",
-		Result:  "TotalBytesSent",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_bytes_sent",
-			"bytes sent on gateway WAN interface",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.CounterValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetAddonInfos",
-		Result:  "ByteSendRate",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_bytes_send_rate",
-			"byte send rate on gateway WAN interface",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.GaugeValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetAddonInfos",
-		Result:  "ByteReceiveRate",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_bytes_receive_rate",
-			"byte receive rate on gateway WAN interface",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.GaugeValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetCommonLinkProperties",
-		Result:  "Layer1UpstreamMaxBitRate",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_layer1_upstream_max_bitrate",
-			"Layer1 upstream max bitrate",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.GaugeValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetCommonLinkProperties",
-		Result:  "Layer1DownstreamMaxBitRate",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_layer1_downstream_max_bitrate",
-			"Layer1 downstream max bitrate",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.GaugeValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		Action:  "GetCommonLinkProperties",
-		Result:  "PhysicalLinkStatus",
-		OkValue: "Up",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_layer1_link_status",
-			"Status of physical link (Up = 1)",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.GaugeValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANIPConnection:1",
-		Action:  "GetStatusInfo",
-		Result:  "ConnectionStatus",
-		OkValue: "Connected",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_connection_status",
-			"WAN connection status (Connected = 1)",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.GaugeValue,
-	},
-	{
-		Service: "urn:schemas-upnp-org:service:WANIPConnection:1",
-		Action:  "GetStatusInfo",
-		Result:  "Uptime",
-		Desc: prometheus.NewDesc(
-			"gateway_wan_connection_uptime_seconds",
-			"WAN connection uptime",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.GaugeValue,
-	},
+func (m *Metric) String() string {
+	var res strings.Builder
+	if m.Metric != "" {
+		res.WriteString(fmt.Sprintf("%s: ", m.Metric))
+	}
+
+	res.WriteString(fmt.Sprintf("%s/%s/%s", m.Service, m.Action, m.Result))
+
+	return res.String()
 }
 
-var TR64Metrics = []*Metric{
-	{
-		Service: "urn:dslforum-org:service:WLANConfiguration:1",
-		Action:  "GetTotalAssociations",
-		Result:  "TotalAssociations",
-		Desc: prometheus.NewDesc(
-			"gateway_wlan_current_connections",
-			"current WLAN connections",
-			[]string{"gateway"},
-			nil,
-		),
-		MetricType: prometheus.GaugeValue,
-	},
+func loadMetrics(data []byte) ([]*Metric, error) {
+	var metrics []*Metric
+
+	err := yaml.Unmarshal(data, &metrics)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter valid metrics
+	var metrics2 []*Metric
+	for _, m := range metrics {
+		if m.Metric == "" {
+			log.Printf("skipping metric %s: no metric name\n", m)
+			continue
+		}
+
+		switch m.Type {
+		case "counter":
+			m.metricType = prometheus.CounterValue
+		case "gauge":
+			m.metricType = prometheus.GaugeValue
+		default:
+			log.Printf("skipping metric %s: invalid metric type: %s", m, m.Type)
+			continue
+		}
+
+		labels := []string{"gateway"}
+		if m.LabelName != "" {
+			labels = append(labels, m.LabelName)
+		}
+
+		m.desc = prometheus.NewDesc(m.Metric, m.Help, labels, nil)
+		metrics2 = append(metrics2, m)
+	}
+
+	return metrics2, nil
+}
+
+func writeMetrics(w io.Writer, metrics []*Metric) error {
+	data, err := yaml.Marshal(metrics)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(data)
+	return err
+}
+
+func testMetrics(p upnp.ConnectionParameters, desc string) error {
+	root, err := upnp.LoadServiceRoot(p, desc)
+	if err != nil {
+		return err
+	}
+
+	var metrics []*Metric
+
+	for _, s := range root.Services {
+		for _, a := range s.Actions {
+			if !a.IsGetOnly() {
+				continue
+			}
+
+			res, err := a.Call()
+			if err != nil {
+				log.Printf("unexpected error: %v\n", err)
+				continue
+			}
+
+			for _, arg := range a.Arguments {
+				value := res[arg.StateVariable.Name]
+
+				m := &Metric{
+					Metric:       "",
+					Help:         "",
+					Type:         "",
+					Service:      s.ServiceType,
+					Action:       a.Name,
+					Result:       arg.StateVariable.Name,
+					ExampleValue: fmt.Sprintf("%v", value),
+					OkValue:      "",
+					Source:       desc,
+				}
+				metrics = append(metrics, m)
+			}
+		}
+	}
+
+	return writeMetrics(os.Stdout, metrics)
 }

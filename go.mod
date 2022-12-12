@@ -5,7 +5,10 @@ go 1.18
 require (
 	github.com/ndecker/go-http-digest-auth-client v0.4.0
 	github.com/prometheus/client_golang v1.14.0
+	gopkg.in/yaml.v3 v3.0.1
 )
+
+// replace github.com/ndecker/go-http-digest-auth-client => ../go-http-digest-auth-client
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
